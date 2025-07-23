@@ -1,48 +1,89 @@
+from ollama import ChatResponse, chat
 import logging
 
-import ollama
+SYSTEM = """You are a friendly, helpful assistant.
+Your name is Copilot. You are to talk to users in a friendly manner.
+Also, remember that you are in a realtime environment.
+So, you can only spend ONE SENTENCE for thinking purposes.
+Your responses will also be short and minimal in one sentence, with no emojis.
+"""
 
-import inputs
-import tools
-from logger import logger
+def get_time() -> str:
+    """
+    Returns the current time.
 
-logger.log(logging.DEBUG, "DEBUG [ main      ]  Nothing.")
+    Args:
+        None
 
-toolchain = tools.Toolchain()
-input_man = inputs.InputManager()
+    Returns:
+        str: the current time in 24-hour format
+    """
 
-toolchain.register_tools()
-input_man.register_inputs()
-input_man.begin_streams()
+    return "03:00"
 
-# Mainloop
-client = ollama.Client()
-model = "nemotron-mini"
-messages = [
-    {
-        "role": "system",
-        "content": "You are a helpful assistant who gives short, concise responses.",
-    },
-]
+def search_google(query: str) -> list[str]:
+    """
+    Retrieves results from the Google search engine.
+
+    Args:
+        query: str
+
+    Returns:
+        list[str]: Search results
+    """
+
+    return [
+        "The meaning of life",
+        "Hitchhiker's Guide to the Galaxy",
+        "So long and thanks for all the fish"
+    ]
+
+available_functions = {
+    "get_time": get_time,
+    "search_google": search_google
+}
+tools = list(available_functions.values())
+model = "qwen3:4b"
+messages = [{
+    "role": "system",
+    "content": SYSTEM
+}]
+
 while True:
-    messages.append({"role": "user", "content": input("> ")})
-    response = client.chat(model=model, messages=messages, tools=toolchain.tools)
-    print(f"< {response}")
-    messages.append(response["message"])
+    messages.append({
+        "role": "user",
+        "content": input("> "),
+    })
 
-    if not response["message"].get("tool_calls"):
-        # messages.append(
-        #     {
-        #         "role": "system",
-        #         "content": "Oops! Please use tools to respond, not plain text!",
-        #     }
-        # )
-        continue
+    in_toolchain = True
 
-    for call in response["message"]["tool_calls"]:
-        tool_response = toolchain.eval_call(call)
-        if tool_response is None:
-            continue
-        messages.append(tool_response)
+    while in_toolchain:
+        response: ChatResponse = chat(
+            model,
+            messages=messages,
+            tools=tools,
+            think=True
+        )
+        messages.append(response.message)
 
-input_man.kill_streams()
+        calls = response.message.tool_calls
+        if calls:
+            for tool in calls:
+                if function := available_functions.get(tool.function.name):
+                    output = function(**tool.function.arguments)
+                    messages.append({
+                        "role": "tool",
+                        "content": str(output),
+                        "tool_name": tool.function.name
+                    })
+                else:
+                    messages.append({
+                        "role": "tool",
+                        "content": f"Tool not found: {tool.function.name}",
+                        "tool_name": "not_found"
+                    })
+        else:
+            in_toolchain = False
+
+    print(messages[-1]["content"])
+

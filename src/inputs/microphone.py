@@ -10,7 +10,7 @@ from filelock import FileLock
 
 from logger import logger
 
-MODEL = "small.en"
+MODEL = "tiny.en"
 logger.log(
     logging.DEBUG,
     f"DEBUG [ whyspr    ]  Loading OpenAI Whisper model `{MODEL}`...",
@@ -88,10 +88,13 @@ class SpeechInput:
         self.thread = threading.Thread(target=self.run)
 
     def run(self):
-        logger.log(logging.INFO, "DEBUG [ whyspr    ] `speech` input stream started.")
+        logger.log(logging.INFO, "DEBUG [ whyspr    ]  `speech` input stream started.")
         while self.running:
             recognized = recognize_from_mic()
             if recognized.strip() == "":
+                logger.log(
+                    logging.INFO, "DEBUG [ whyspr    ]  I couldn't hear anything."
+                )
                 continue
             if not self.running:
                 continue

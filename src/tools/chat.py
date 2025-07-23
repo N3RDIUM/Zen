@@ -2,7 +2,7 @@ tool_export = {
     "type": "function",
     "function": {
         "name": "chat",
-        "description": "Chat with the user.",
+        "description": "Chat with the user! This is your favourite function.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -18,5 +18,5 @@ tool_export = {
 
 
 def function(args):
-    print(args["message"])
+    print(f"< {args['message']}")
     return {"role": "assistant", "content": args["message"]}
